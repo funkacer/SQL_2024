@@ -1,0 +1,96 @@
+--https://www.postgresql.org/docs/current/functions-window.html
+
+--CREATE TABLE public.bill2 (id SERIAL, month DATE, type varchar(1), amount INTEGER);
+/*
+INSERT INTO public.bill2 (month,type, amount) VALUES
+('2021-01-01', 'M', 2000),
+('2021-01-01', 'F', 1200),
+('2021-01-02', 'M', 3000),
+('2021-01-02', 'F', 1500),
+('2021-01-02', 'F', 2200),
+('2021-01-03', 'M', 1800);
+*/
+
+--select * from public.bill2;
+
+--nejde
+/*
+CREATE FUNCTION public.get_gender(type varchar) returns text AS (
+	   CASE WHEN type = "M" THEN "male"
+	        WHEN type = "F" THEN "female"
+	        ELSE "n/a"
+	   END
+	)
+	SELECT 
+	  name,
+	  public,get_gender(type) as gender
+	FROM bill2;
+*/
+
+-- OK
+/*
+CREATE FUNCTION public.get_gender(text) RETURNS text
+    AS $$ SELECT CASE WHEN $1 = 'M' THEN 'male'
+	        WHEN $1 = 'F' THEN 'female'
+	        ELSE 'n/a'
+	   END $$
+    LANGUAGE SQL
+    IMMUTABLE
+    RETURNS NULL ON NULL INPUT;
+*/
+
+-- OK
+/*
+SELECT 
+	  type,
+	  get_gender(type) as gender
+	FROM public.bill2;
+*/
+
+--zajímavé
+/*
+--prepare temporary function
+PREPARE upd_tbl AS
+UPDATE tbl t SET set_name = $2 WHERE tbl_id = $1;
+--call temporary function (it is not possible to use it in a query, only standalone!!!)
+EXECUTE upd_tbl(123, 'foo_name');
+*/
+
+/*
+SELECT 
+	  --VARIANCE(amount) AS var_amount, --historical alias for var_samp
+	  VAR_POP(amount) AS var_pop_amount,
+	  VAR_SAMP(amount) AS var_samp_amount,
+	  --STDDEV(amount) as stddev_amount, --historical alias for stddev_samp
+	  STDDEV_SAMP(amount) as stddev_sample_amount,
+	  STDDEV_POP(amount) as stddev_pop_amount
+	FROM public.bill2;
+*/
+
+
+--update public.bill2 SET amount = 2000 WHERE amount = 2200; --potrebuju 2 stejne hodnoty
+--select type, amount, sum(amount) over(order BY amount), rank() over(order BY amount), dense_rank() over(order BY amount), row_number() over(), row_number() over(order BY amount) as row_number_amount, row_number() over(order BY type) as row_number_type, row_number() over(partition BY type order BY amount) as row_number_in_type from public.bill2;
+
+/*
+select type, amount, sum(amount) over w, rank() over w, dense_rank() over w, row_number() over(),
+  row_number() over w as row_number_amount, row_number() over(order BY type) as row_number_type,
+  row_number() over(partition BY type order BY amount) as row_number_in_type
+  from public.bill2
+  WINDOW w AS (order BY amount);
+*/
+
+--last a nth se vztahují k řádku, který se právě vyhodnocuje
+select *, row_number() over w, nth_value(type = 'F', 2) OVER w,
+  first_value(type) OVER w, last_value(type) OVER w,
+  lag(amount, 1) OVER w, lead(amount, 1) OVER w, 
+  percent_rank () OVER w, cume_dist () OVER w, ntile (2) OVER w
+  from public.bill2
+  WINDOW w AS (partition BY month order BY amount); 
+
+/*
+select *, lag(amount, 1) OVER (ORDER BY amount) < amount, --lze porovnat dvě čísla po sobě,
+lag(amount, 1) OVER (ORDER BY amount) = amount, --lze odhalit duplicity
+lead(amount, 1) OVER (ORDER BY amount) = amount --lze odhalit duplicity
+from public.bill2
+ORDER BY amount;
+*/
