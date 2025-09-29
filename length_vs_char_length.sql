@@ -1,0 +1,1 @@
+select 'Jiří Černý 😀' name, length('Jiří Černý 😀') length, char_length('Jiří Černý 😀') char_length;
