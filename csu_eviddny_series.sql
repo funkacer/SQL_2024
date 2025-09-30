@@ -27,10 +27,11 @@ select count(d::date) as d from generate_series((select startday from t1), (sele
 where extract('dow' from d) not in (0, 6);
 */
 
+/*
 with t1 as (select TO_TIMESTAMP('20240630', 'YYYYMMDD')::DATE as konecday, (TO_TIMESTAMP('20240630', 'YYYYMMDD') - concat((182-1)::VARCHAR, ' DAYS')::INTERVAL)::DATE as "startday")
 select d::date as d, extract('dow' from d) as dow from generate_series((select startday from t1), (select konecday from t1), '1 day'::interval) d
 where extract('dow' from d) not in (0, 6);
-
+*/
 
 /*
 select count(d::date) as d
